@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+uploads/*
+temp/*
+output/*
+!uploads/.gitkeep
+!temp/.gitkeep
+!output/.gitkeep
+assets/fonts/*
+!assets/fonts/.gitkeep

@@ -1,0 +1,177 @@
+import PDFDocument from 'pdfkit';
+import fs from 'fs';
+import path from 'path';
+import { v4 as uuidv4 } from 'uuid';
+import { GeneratedStory, GeneratedImage, BookStyle } from '../types';
+
+interface PdfGenerationParams {
+  story: GeneratedStory;
+  images: GeneratedImage[];
+  childName: string;
+  style: BookStyle;
+}
+
+interface PdfResult {
+  pdfPath: string;
+  filename: string;
+}
+
+export class PdfService {
+  private outputDir: string;
+
+  constructor() {
+    this.outputDir = process.env.OUTPUT_DIR || './output';
+    if (!fs.existsSync(this.outputDir)) {
+      fs.mkdirSync(this.outputDir, { recursive: true });
+    }
+  }
+
+  async generatePdf(params: PdfGenerationParams): Promise<PdfResult> {
+    const { story, images, childName, style } = params;
+    const _style = style;
+    console.log(`📚 PdfService: Creating PDF for "${story.title}"`);
+
+    const filename = `book_${uuidv4()}.pdf`;
+    const pdfPath = path.join(this.outputDir, filename);
+
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({
+          size: 'A4',
+          margins: { top: 50, bottom: 50, left: 50, right: 50 },
+          info: {
+            Title: story.title,
+            Author: `KidFaceBook для ${childName}`,
+            Subject: 'Персонализированная детская книга',
+            Creator: 'KidFaceBook',
+          },
+        });
+
+        const stream = fs.createWriteStream(pdfPath);
+        doc.pipe(stream);
+
+        this.createTitlePage(doc, story, childName, _style);
+
+        for (let i = 0; i < story.pages.length; i++) {
+          const page = story.pages[i];
+          const image = images.find((img) => img.pageNumber === page.pageNumber);
+          doc.addPage();
+          this.createStoryPage(doc, page, image);
+        }
+
+        if (story.moral) {
+          doc.addPage();
+          this.createMoralPage(doc, story.moral, childName);
+        }
+
+        doc.end();
+
+        stream.on('finish', () => resolve({ pdfPath, filename }));
+        stream.on('error', reject);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  }
+
+  private createTitlePage(
+    doc: PDFKit.PDFDocument,
+    story: GeneratedStory,
+    childName: string,
+    _style: BookStyle,
+  ): void {
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+
+    doc.rect(0, 0, pageWidth, pageHeight).fill('#FFF5E6');
+    doc
+      .fontSize(42)
+      .fillColor('#4A4A4A')
+      .text(story.title, 50, pageHeight / 3, { align: 'center', width: pageWidth - 100 });
+
+    doc
+      .fontSize(24)
+      .fillColor('#7A7A7A')
+      .text(`Сказка для ${childName}`, 50, pageHeight / 3 + 80, {
+        align: 'center',
+        width: pageWidth - 100,
+      });
+
+    doc.fontSize(48).text('✨ 📚 ✨', 50, pageHeight / 2 + 50, {
+      align: 'center',
+      width: pageWidth - 100,
+    });
+  }
+
+  private createStoryPage(
+    doc: PDFKit.PDFDocument,
+    page: { pageNumber: number; text: string; imagePrompt: string },
+    image?: GeneratedImage,
+  ): void {
+    const pageWidth = doc.page.width;
+    const margin = 50;
+    const contentWidth = pageWidth - margin * 2;
+
+    doc.rect(0, 0, pageWidth, doc.page.height).fill('#FFFEF5');
+    doc.fontSize(12).fillColor('#CCCCCC').text(`— ${page.pageNumber} —`, margin, 30, {
+      align: 'center',
+      width: contentWidth,
+    });
+
+    const imageY = 60;
+    const imageHeight = 350;
+
+    if (image && fs.existsSync(image.localPath)) {
+      if (image.localPath.endsWith('.svg')) {
+        doc.rect(margin, imageY, contentWidth, imageHeight).fillAndStroke('#E8F4F8', '#CCE5FF');
+        doc.fontSize(18).fillColor('#666').text('🎨 Иллюстрация', margin, imageY + imageHeight / 2 - 20, {
+          align: 'center',
+          width: contentWidth,
+        });
+      } else {
+        try {
+          doc.image(image.localPath, margin, imageY, {
+            fit: [contentWidth, imageHeight],
+            align: 'center',
+            valign: 'center',
+          });
+        } catch {
+          doc.rect(margin, imageY, contentWidth, imageHeight).fill('#F0F0F0');
+        }
+      }
+    } else {
+      doc.rect(margin, imageY, contentWidth, imageHeight).fill('#F5F5F5');
+    }
+
+    const textY = imageY + imageHeight + 40;
+    doc.fontSize(18).fillColor('#333333').text(page.text, margin, textY, {
+      align: 'center',
+      width: contentWidth,
+      lineGap: 8,
+    });
+  }
+
+  private createMoralPage(doc: PDFKit.PDFDocument, moral: string, childName: string): void {
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const margin = 50;
+    const contentWidth = pageWidth - margin * 2;
+
+    doc.rect(0, 0, pageWidth, pageHeight).fill('#FFF8DC');
+    doc.fontSize(32).fillColor('#4A4A4A').text('Конец', margin, 160, {
+      align: 'center',
+      width: contentWidth,
+    });
+    doc.fontSize(22).fillColor('#333333').text(`«${moral}»`, margin, 280, {
+      align: 'center',
+      width: contentWidth,
+      lineGap: 6,
+    });
+    doc.fontSize(16).fillColor('#888888').text(
+      `Эта сказка была создана специально для тебя, ${childName}!`,
+      margin,
+      pageHeight - 200,
+      { align: 'center', width: contentWidth },
+    );
+  }
+}

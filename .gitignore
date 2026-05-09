@@ -1,0 +1,6 @@
+# Общие артефакты; секреты см. .gitignore в kidfacebook-api и kidfacebook-vk-app
+**/node_modules/
+**/dist/
+.DS_Store
+Thumbs.db
+*.log

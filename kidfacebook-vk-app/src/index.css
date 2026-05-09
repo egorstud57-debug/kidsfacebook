@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --magic-cream: #f7f1e6;
+  --magic-pink: #e8743b;
+  --magic-gold: #d9a441;
+  --magic-turquoise: #7ea89a;
+  --magic-purple: #8a5a3c;
+  --magic-orange: #f08a33;
+}
+
+body {
+  font-family: 'Nunito', Arial, sans-serif;
+  background:
+    radial-gradient(circle at 12% 14%, rgba(232, 116, 59, 0.14), transparent 40%),
+    radial-gradient(circle at 86% 20%, rgba(217, 164, 65, 0.14), transparent 34%),
+    radial-gradient(circle at 50% 88%, rgba(126, 168, 154, 0.14), transparent 38%),
+    linear-gradient(180deg, var(--magic-cream) 0%, #efe5d5 100%);
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.dark body {
+  background:
+    radial-gradient(circle at 10% 10%, rgba(232, 116, 59, 0.2), transparent 38%),
+    radial-gradient(circle at 85% 16%, rgba(126, 168, 154, 0.14), transparent 34%),
+    radial-gradient(circle at 52% 90%, rgba(138, 90, 60, 0.24), transparent 40%),
+    linear-gradient(135deg, #2b2420 0%, #1f1b18 100%);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    color: #2f2925;
+  }
+
+  p,
+  li,
+  label,
+  span {
+    color: #5c5047;
+  }
+
+  .dark h1,
+  .dark h2,
+  .dark h3,
+  .dark h4,
+  .dark h5,
+  .dark h6 {
+    color: #f2e8dd;
+  }
+
+  .dark p,
+  .dark li,
+  .dark label,
+  .dark span {
+    color: #d7c6b5;
+  }
+}
+
+@layer components {
+  .magic-card {
+    @apply bg-white/90 backdrop-blur-md rounded-3xl shadow-xl p-5 sm:p-6;
+    @apply dark:bg-gray-800/80 dark:text-white;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow:
+      0 18px 45px rgba(232, 116, 59, 0.12),
+      0 8px 26px rgba(18, 24, 40, 0.1);
+  }
+
+  .magic-gradient {
+    background: linear-gradient(135deg, var(--magic-pink) 0%, var(--magic-purple) 100%);
+  }
+
+  .magic-text-gradient {
+    background: linear-gradient(135deg, var(--magic-pink), var(--magic-purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .sparkle-effect {
+    position: relative;
+  }
+
+  .sparkle-effect::after {
+    content: '✨';
+    position: absolute;
+    animation: sparkle 2s ease-in-out infinite;
+  }
+
+  .magic-button {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+  }
+
+  .magic-button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 22%, rgba(255, 255, 255, 0.45), transparent 78%);
+    transform: translateX(-140%);
+    transition: transform 700ms ease;
+    z-index: -1;
+  }
+
+  .magic-button:hover::before {
+    transform: translateX(140%);
+  }
+}
+
+.vkuiButton--appearance-accent {
+  background: linear-gradient(135deg, var(--magic-pink) 0%, var(--magic-purple) 100%) !important;
+  border: none !important;
+}
+
+.vkuiButton--size-l {
+  border-radius: 20px !important;
+  font-weight: 700 !important;
+}
