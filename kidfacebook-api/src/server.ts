@@ -26,6 +26,27 @@ dirs.forEach((dir) => {
 const app: Express = express();
 const PORT = process.env.PORT || 3001;
 
+function parseCorsAllowlist(): string[] {
+  const raw = process.env.CORS_ORIGINS;
+  if (!raw?.trim()) return [];
+  return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+/** Запросы из клиента VK / VK Mini Apps Hosting */
+function isVkClientOrigin(origin: string): boolean {
+  try {
+    const { hostname } = new URL(origin);
+    return (
+      hostname === 'vk.com' ||
+      hostname === 'm.vk.ru' ||
+      hostname.endsWith('.vk.com') ||
+      hostname.endsWith('.vk-apps.com')
+    );
+  } catch {
+    return false;
+  }
+}
+
 app.use(
   helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -34,14 +55,24 @@ app.use(
 
 app.use(
   cors({
-    // В dev любой localhost:<port> (Vite может занять 10888/10889 и т.д.)
-    origin:
-      process.env.NODE_ENV === 'production'
-        ? (process.env.CORS_ORIGINS?.split(',').map((s) => s.trim()) ?? [
-            'https://yourdomain.com',
-          ])
-        : true,
     credentials: true,
+    origin(origin, callback) {
+      // Локально — любой origin (Vite 10888 и т.д.)
+      if (process.env.NODE_ENV !== 'production') {
+        callback(null, true);
+        return;
+      }
+      const allowlist = parseCorsAllowlist();
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (allowlist.includes(origin) || isVkClientOrigin(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
+    },
   }),
 );
 
