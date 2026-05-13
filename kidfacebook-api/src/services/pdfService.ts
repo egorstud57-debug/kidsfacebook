@@ -16,6 +16,8 @@ interface PdfResult {
   filename: string;
 }
 
+const NOTO_SANS_VF = 'NotoSans-VF.ttf';
+
 export class PdfService {
   private outputDir: string;
 
@@ -24,6 +26,30 @@ export class PdfService {
     if (!fs.existsSync(this.outputDir)) {
       fs.mkdirSync(this.outputDir, { recursive: true });
     }
+  }
+
+  /** Шрифт с кириллицей (Helvetica по умолчанию в PDFKit её не рисует). */
+  private cyrillicFontPath(): string {
+    const envPath = process.env.PDF_CYRILLIC_FONT_PATH?.trim();
+    const candidates = [
+      envPath,
+      path.join(__dirname, '../../fonts', NOTO_SANS_VF),
+      path.join(process.cwd(), 'fonts', NOTO_SANS_VF),
+      path.join(process.cwd(), 'kidfacebook-api/fonts', NOTO_SANS_VF),
+    ].filter((p): p is string => Boolean(p));
+
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        return p;
+      }
+    }
+
+    console.error(
+      'PdfService: файл шрифта NotoSans-VF.ttf не найден. Проверено:',
+      candidates,
+      '— кириллица в PDF будет «кракозябрами». Добавьте шрифт в репозиторий (kidfacebook-api/fonts/) или PDF_CYRILLIC_FONT_PATH.',
+    );
+    return 'Helvetica';
   }
 
   async generatePdf(params: PdfGenerationParams): Promise<PdfResult> {
@@ -50,17 +76,22 @@ export class PdfService {
         const stream = fs.createWriteStream(pdfPath);
         doc.pipe(stream);
 
+        const cyrillicFont = this.cyrillicFontPath();
+        doc.font(cyrillicFont);
+
         this.createTitlePage(doc, story, childName, _style);
 
         for (let i = 0; i < story.pages.length; i++) {
           const page = story.pages[i];
           const image = images.find((img) => img.pageNumber === page.pageNumber);
           doc.addPage();
+          doc.font(cyrillicFont);
           this.createStoryPage(doc, page, image);
         }
 
         if (story.moral) {
           doc.addPage();
+          doc.font(cyrillicFont);
           this.createMoralPage(doc, story.moral, childName);
         }
 
