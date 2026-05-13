@@ -153,9 +153,36 @@ export class PdfService {
     doc.rect(0, 0, pageWidth, pageHeight).fill('#FFF8EF');
     this.drawTitlePageBookDecor(doc, pageWidth, pageHeight);
 
-    const coverTop = 44;
-    const coverH = 210;
-    let textCursorY = coverTop + coverH + 32;
+    const brandBandY = 40;
+    const brandBandH = 40;
+    doc.rect(margin, brandBandY, contentWidth, brandBandH).fill('#F3EBE2');
+    doc
+      .lineWidth(0.45)
+      .strokeColor('#D8CBBE')
+      .rect(margin, brandBandY, contentWidth, brandBandH)
+      .stroke();
+
+    doc.fontSize(15).fillColor('#4A3F35').text('KidFaceBook', margin, brandBandY + 9, {
+      align: 'center',
+      width: contentWidth,
+    });
+    doc.fontSize(9).fillColor('#7D726A').text('Персональные сказки с вашим ребёнком в главной роли', margin, brandBandY + 28, {
+      align: 'center',
+      width: contentWidth,
+      lineGap: 2,
+    });
+
+    const ornamentsY = brandBandY + brandBandH + 6;
+    doc.save();
+    doc.strokeColor('#C4B5A4').lineWidth(0.35);
+    const ox = pageWidth / 2;
+    doc.moveTo(ox - 62, ornamentsY).lineTo(ox - 28, ornamentsY).stroke();
+    doc.moveTo(ox + 28, ornamentsY).lineTo(ox + 62, ornamentsY).stroke();
+    doc.restore();
+
+    const coverTop = brandBandY + brandBandH + 18;
+    const coverH = 198;
+    let textCursorY = coverTop + coverH + 28;
 
     let hasCover = false;
     if (
@@ -185,11 +212,11 @@ export class PdfService {
       doc
         .fontSize(11)
         .fillColor('#A89888')
-        .text('Персональная книга', margin, coverTop + 28, {
+        .text('Обложка появится после генерации иллюстрации', margin, coverTop + 28, {
           align: 'center',
           width: contentWidth,
         });
-      textCursorY = doc.y + 36;
+      textCursorY = doc.y + 32;
     }
 
     const titleSize =
@@ -211,13 +238,13 @@ export class PdfService {
         lineGap: 4,
       });
 
-    const decoY = Math.min(doc.y + 26, pageHeight - 72);
+    const decoY = Math.min(doc.y + 24, pageHeight - 58);
     doc.fontSize(13).fillColor('#C4A574').text('★      ★      ★', margin, decoY, {
       align: 'center',
       width: contentWidth,
     });
 
-    doc.fontSize(9).fillColor('#B0B0B0').text('KidFaceBook', margin, pageHeight - 52, {
+    doc.fontSize(8).fillColor('#B8AEA6').text('KidFaceBook · персональные детские книги', margin, pageHeight - 46, {
       align: 'center',
       width: contentWidth,
     });
