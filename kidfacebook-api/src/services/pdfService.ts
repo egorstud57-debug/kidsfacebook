@@ -79,7 +79,13 @@ export class PdfService {
         const cyrillicFont = this.cyrillicFontPath();
         doc.font(cyrillicFont);
 
-        this.createTitlePage(doc, story, childName, _style);
+        this.createTitlePage(
+          doc,
+          story,
+          childName,
+          _style,
+          images.find((img) => img.pageNumber === 1),
+        );
 
         for (let i = 0; i < story.pages.length; i++) {
           const page = story.pages[i];
@@ -110,27 +116,82 @@ export class PdfService {
     story: GeneratedStory,
     childName: string,
     _style: BookStyle,
+    coverImage?: GeneratedImage,
   ): void {
     const pageWidth = doc.page.width;
     const pageHeight = doc.page.height;
+    const margin = 50;
+    const contentWidth = pageWidth - margin * 2;
 
-    doc.rect(0, 0, pageWidth, pageHeight).fill('#FFF5E6');
-    doc
-      .fontSize(42)
-      .fillColor('#4A4A4A')
-      .text(story.title, 50, pageHeight / 3, { align: 'center', width: pageWidth - 100 });
+    doc.rect(0, 0, pageWidth, pageHeight).fill('#FFF8EF');
 
+    const coverTop = 44;
+    const coverH = 210;
+    let textCursorY = coverTop + coverH + 32;
+
+    let hasCover = false;
+    if (
+      coverImage &&
+      fs.existsSync(coverImage.localPath) &&
+      !coverImage.localPath.endsWith('.svg')
+    ) {
+      try {
+        doc.image(coverImage.localPath, margin, coverTop, {
+          fit: [contentWidth, coverH],
+          align: 'center',
+          valign: 'center',
+        });
+        doc
+          .lineWidth(0.75)
+          .strokeColor('#D9C9B8')
+          .rect(margin, coverTop, contentWidth, coverH)
+          .stroke();
+        hasCover = true;
+      } catch {
+        hasCover = false;
+      }
+    }
+
+    if (!hasCover) {
+      doc.rect(margin, coverTop, contentWidth, 10).fill('#E8D5C5');
+      doc
+        .fontSize(11)
+        .fillColor('#A89888')
+        .text('Персональная книга', margin, coverTop + 28, {
+          align: 'center',
+          width: contentWidth,
+        });
+      textCursorY = doc.y + 36;
+    }
+
+    const titleSize =
+      story.title.length > 56 ? 22 : story.title.length > 38 ? 26 : story.title.length > 28 ? 30 : 34;
+
+    doc.fontSize(titleSize).fillColor('#3A3A3A').text(story.title, margin, textCursorY, {
+      align: 'center',
+      width: contentWidth,
+      lineGap: 8,
+    });
+
+    const subtitleY = doc.y + 22;
     doc
-      .fontSize(24)
-      .fillColor('#7A7A7A')
-      .text(`Сказка для ${childName}`, 50, pageHeight / 3 + 80, {
+      .fontSize(15)
+      .fillColor('#6E6E6E')
+      .text(`Персональная история для ${childName}`, margin, subtitleY, {
         align: 'center',
-        width: pageWidth - 100,
+        width: contentWidth,
+        lineGap: 4,
       });
 
-    doc.fontSize(48).text('✨ 📚 ✨', 50, pageHeight / 2 + 50, {
+    const decoY = Math.min(doc.y + 26, pageHeight - 72);
+    doc.fontSize(13).fillColor('#C4A574').text('★      ★      ★', margin, decoY, {
       align: 'center',
-      width: pageWidth - 100,
+      width: contentWidth,
+    });
+
+    doc.fontSize(9).fillColor('#B0B0B0').text('KidFaceBook', margin, pageHeight - 52, {
+      align: 'center',
+      width: contentWidth,
     });
   }
 
@@ -155,7 +216,7 @@ export class PdfService {
     if (image && fs.existsSync(image.localPath)) {
       if (image.localPath.endsWith('.svg')) {
         doc.rect(margin, imageY, contentWidth, imageHeight).fillAndStroke('#E8F4F8', '#CCE5FF');
-        doc.fontSize(18).fillColor('#666').text('🎨 Иллюстрация', margin, imageY + imageHeight / 2 - 20, {
+        doc.fontSize(18).fillColor('#666').text('Иллюстрация', margin, imageY + imageHeight / 2 - 20, {
           align: 'center',
           width: contentWidth,
         });
