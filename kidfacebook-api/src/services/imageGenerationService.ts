@@ -26,7 +26,10 @@ export class ImageGenerationService {
     this.outputDir = process.env.OUTPUT_DIR || './output';
     const kieKey = process.env.KIE_AI_API_KEY?.trim();
     const replicateToken = process.env.REPLICATE_API_TOKEN?.trim();
-    const prefer = process.env.IMAGE_GEN_PROVIDER?.toLowerCase();
+    let prefer = process.env.IMAGE_GEN_PROVIDER?.trim().toLowerCase() ?? '';
+    if (prefer === '-none') {
+      prefer = 'none';
+    }
 
     this.kie = kieKey ? new KieFluxKontextService(kieKey) : null;
     this.replicate = replicateToken ? new Replicate({ auth: replicateToken }) : null;
@@ -46,7 +49,7 @@ export class ImageGenerationService {
     }
 
     console.log(
-      `🖼️ Image backend: ${this.backend}${prefer === 'none' ? ' (Kie/Replicate выключены через IMAGE_GEN_PROVIDER)' : ''}`,
+      `🖼️ Image backend: ${this.backend}${prefer === 'none' ? ' (Kie/Replicate выключены: IMAGE_GEN_PROVIDER=none)' : ''}`,
     );
   }
 
