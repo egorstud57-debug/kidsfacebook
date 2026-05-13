@@ -31,7 +31,9 @@ export class ImageGenerationService {
     this.kie = kieKey ? new KieFluxKontextService(kieKey) : null;
     this.replicate = replicateToken ? new Replicate({ auth: replicateToken }) : null;
 
-    if (prefer === 'replicate' && this.replicate) {
+    if (prefer === 'none') {
+      this.backend = 'none';
+    } else if (prefer === 'replicate' && this.replicate) {
       this.backend = 'replicate';
     } else if (prefer === 'kie' && this.kie) {
       this.backend = 'kie';
@@ -43,7 +45,9 @@ export class ImageGenerationService {
       this.backend = 'none';
     }
 
-    console.log(`🖼️ Image backend: ${this.backend}`);
+    console.log(
+      `🖼️ Image backend: ${this.backend}${prefer === 'none' ? ' (Kie/Replicate выключены через IMAGE_GEN_PROVIDER)' : ''}`,
+    );
   }
 
   async generateImages(params: ImageGenerationParams): Promise<GeneratedImage[]> {
