@@ -269,7 +269,10 @@ export class BookController {
         style: job.request.style,
       });
 
-      const baseUrl = process.env.BASE_URL || 'http://localhost:3001';
+      const baseUrl = (process.env.BASE_URL || 'http://localhost:3001').replace(
+        /\/$/,
+        '',
+      );
 
       this.updateJob(jobId, {
         status: 'completed',
