@@ -40,6 +40,21 @@ export interface GeneratedStory {
   moral?: string;
 }
 
+/** Ответ модели YandexGPT (JSON в тексте сообщения). */
+export const GeneratedStoryJsonSchema = z.object({
+  title: z.string().min(1),
+  pages: z
+    .array(
+      z.object({
+        pageNumber: z.coerce.number().int().positive(),
+        text: z.string().min(1),
+        imagePrompt: z.string().min(1),
+      }),
+    )
+    .min(1),
+  moral: z.string().optional(),
+});
+
 export interface ImageGenerationRequest {
   prompt: string;
   faceReferenceUrl: string;
