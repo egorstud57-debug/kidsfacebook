@@ -68,10 +68,13 @@ export class YandexGptService {
 4. Герой по характеру похож на ребёнка.
 5. Включи элементы, связанные с интересами ребёнка.
 6. В поле moral — короткая мораль или добрый вывод.
+7. Поле title: очень короткое название для обложки (ориентир до 40 символов), одна-две строки при чтении, без длинных подзаголовков и без «: целая фраза»; звучно и просто.
+8. Поле coverImagePrompt (на английском): отдельная картинка только для обложки книги — общее настроение сказки, декоративная обложечная иллюстрация; без текста и букв на изображении; по смыслу не копируй кадр первой страницы (pages[0].imagePrompt должен быть другой сценой).
 
 Ответь ОДНИМ JSON-объектом без Markdown, без текста до или после JSON. Структура:
 {
-  "title": "Название сказки",
+  "title": "Короткое название",
+  "coverImagePrompt": "English description for book cover art only, no text in image",
   "pages": [
     {
       "pageNumber": 1,
@@ -81,7 +84,7 @@ export class YandexGptService {
   ],
   "moral": "Мораль истории"
 }
-Важно: imagePrompt на каждой странице — на английском, только описание сцены для иллюстрации.`;
+Важно: imagePrompt на каждой странице и coverImagePrompt — на английском; только описание сцены для иллюстрации.`;
 
     console.log('🤖 YandexGPT: Generating story for', childName);
 
@@ -221,7 +224,8 @@ export class YandexGptService {
     const heroWord = gender === 'boy' ? 'мальчик' : 'девочка';
 
     return {
-      title: `${name} и Волшебный Лес`,
+      title: `${name} и лес чудес`,
+      coverImagePrompt: `Decorative children's book cover illustration, magical golden forest gate and soft sunlight, whimsical storybook frame feel, inviting adventure mood, rich colors, no text, no letters, no typography`,
       pages: [
         {
           pageNumber: 1,

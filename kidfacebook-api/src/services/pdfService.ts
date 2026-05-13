@@ -84,7 +84,8 @@ export class PdfService {
           story,
           childName,
           _style,
-          images.find((img) => img.pageNumber === 1),
+          images.find((img) => img.pageNumber === 0) ??
+            images.find((img) => img.pageNumber === 1),
         );
 
         for (let i = 0; i < story.pages.length; i++) {
@@ -111,6 +112,32 @@ export class PdfService {
     });
   }
 
+  /** Полосы по краям, лёгкий орнамент и скруглённая рамка обложки. */
+  private drawTitlePageBookDecor(
+    doc: PDFKit.PDFDocument,
+    pageWidth: number,
+    pageHeight: number,
+  ): void {
+    doc.save();
+    doc.rect(0, 0, 18, pageHeight).fill('#E8E0D8');
+    doc.rect(pageWidth - 18, 0, 18, pageHeight).fill('#E8E0D8');
+    doc.restore();
+
+    doc.save();
+    doc.fillColor('#D8D0C8').opacity(0.55);
+    const step = 28;
+    for (let y = 76; y < pageHeight - 40; y += step) {
+      doc.circle(27, y, 1.15).fill();
+      doc.circle(pageWidth - 27, y, 1.15).fill();
+    }
+    doc.opacity(1).restore();
+
+    doc.save();
+    doc.lineWidth(0.65).strokeColor('#CEC2B5');
+    doc.roundedRect(26, 26, pageWidth - 52, pageHeight - 52, 14).stroke();
+    doc.restore();
+  }
+
   private createTitlePage(
     doc: PDFKit.PDFDocument,
     story: GeneratedStory,
@@ -124,6 +151,7 @@ export class PdfService {
     const contentWidth = pageWidth - margin * 2;
 
     doc.rect(0, 0, pageWidth, pageHeight).fill('#FFF8EF');
+    this.drawTitlePageBookDecor(doc, pageWidth, pageHeight);
 
     const coverTop = 44;
     const coverH = 210;
@@ -165,7 +193,7 @@ export class PdfService {
     }
 
     const titleSize =
-      story.title.length > 56 ? 22 : story.title.length > 38 ? 26 : story.title.length > 28 ? 30 : 34;
+      story.title.length > 48 ? 24 : story.title.length > 32 ? 28 : story.title.length > 22 ? 32 : 36;
 
     doc.fontSize(titleSize).fillColor('#3A3A3A').text(story.title, margin, textCursorY, {
       align: 'center',
@@ -205,6 +233,8 @@ export class PdfService {
     const contentWidth = pageWidth - margin * 2;
 
     doc.rect(0, 0, pageWidth, doc.page.height).fill('#FFFEF5');
+    doc.rect(0, 0, 10, doc.page.height).fill('#F4EFE8');
+
     doc.fontSize(12).fillColor('#CCCCCC').text(`— ${page.pageNumber} —`, margin, 30, {
       align: 'center',
       width: contentWidth,

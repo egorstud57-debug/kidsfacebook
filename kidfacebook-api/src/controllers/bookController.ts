@@ -244,14 +244,21 @@ export class BookController {
       const faceReferencePath = job.photosPaths[0];
       const images = await this.imageGeneration.generateImages({
         pages: story.pages,
+        coverImagePrompt: story.coverImagePrompt,
         faceReferencePath,
         style: job.request.style,
         stylePrompt: STYLE_PROMPTS[job.request.style],
         childName: job.request.childName,
         onProgress: (progress, current, total) => {
+          const withCover = Boolean(story.coverImagePrompt?.trim());
+          const pageDen = withCover ? total - 1 : total;
+          const pageNum = withCover ? current - 1 : current;
           this.updateJob(jobId, {
             progress: 30 + Math.round((progress / 100) * 50),
-            currentStep: `Рисуем иллюстрацию ${current} из ${total}...`,
+            currentStep:
+              withCover && current === 1
+                ? 'Рисуем обложку...'
+                : `Рисуем иллюстрацию ${Math.max(1, pageNum)} из ${pageDen}...`,
           });
         },
       });

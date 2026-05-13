@@ -7,6 +7,8 @@ import { KieFluxKontextService } from './kieFluxKontextService';
 
 interface ImageGenerationParams {
   pages: StoryPage[];
+  /** Отдельная обложка (Kie pageNumber 0); если нет — в PDF используется картинка стр. 1. */
+  coverImagePrompt?: string;
   faceReferencePath: string;
   style: BookStyle;
   stylePrompt: string;
@@ -54,13 +56,49 @@ export class ImageGenerationService {
   }
 
   async generateImages(params: ImageGenerationParams): Promise<GeneratedImage[]> {
-    const { pages, faceReferencePath, stylePrompt, childName, onProgress } = params;
+    const {
+      pages,
+      coverImagePrompt,
+      faceReferencePath,
+      stylePrompt,
+      childName,
+      onProgress,
+    } = params;
     const images: GeneratedImage[] = [];
-    const total = Math.min(pages.length, 12);
+    const pageTotal = Math.min(pages.length, 12);
+    const coverPrompt = coverImagePrompt?.trim();
+    const stepsTotal = pageTotal + (coverPrompt ? 1 : 0);
+    let completed = 0;
 
-    console.log(`🎨 ImageGenerationService: Generating ${total} images for ${childName}`);
+    const reportProgress = (): void => {
+      completed += 1;
+      if (onProgress) {
+        onProgress((completed / stepsTotal) * 100, completed, stepsTotal);
+      }
+    };
 
-    for (let i = 0; i < total; i++) {
+    console.log(
+      `🎨 ImageGenerationService: ${coverPrompt ? 'cover + ' : ''}${pageTotal} page images for ${childName}`,
+    );
+
+    if (coverPrompt) {
+      try {
+        const coverImg = await this.generateSingleImage({
+          prompt: coverPrompt,
+          stylePrompt,
+          pageNumber: 0,
+          childName,
+          faceReferencePath,
+        });
+        images.push(coverImg);
+      } catch (error) {
+        console.error('Failed to generate cover image:', error);
+        images.push(await this.getPlaceholderImage(0));
+      }
+      reportProgress();
+    }
+
+    for (let i = 0; i < pageTotal; i++) {
       const page = pages[i];
       try {
         const image = await this.generateSingleImage({
@@ -76,9 +114,7 @@ export class ImageGenerationService {
         images.push(await this.getPlaceholderImage(page.pageNumber));
       }
 
-      if (onProgress) {
-        onProgress(((i + 1) / total) * 100, i + 1, total);
-      }
+      reportProgress();
     }
 
     return images;

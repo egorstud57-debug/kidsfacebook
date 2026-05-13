@@ -38,11 +38,14 @@ export interface GeneratedStory {
   title: string;
   pages: StoryPage[];
   moral?: string;
+  /** Отдельный англ. промпт для иллюстрации обложки (не дублирует сцену стр. 1). */
+  coverImagePrompt?: string;
 }
 
 /** Ответ модели YandexGPT (JSON в тексте сообщения). */
 export const GeneratedStoryJsonSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().min(1).max(200),
+  coverImagePrompt: z.string().min(1).optional(),
   pages: z
     .array(
       z.object({
