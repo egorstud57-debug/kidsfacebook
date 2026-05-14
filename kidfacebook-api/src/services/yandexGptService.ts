@@ -20,6 +20,9 @@ interface StoryGenerationParams {
 const COMPLETION_URL =
   'https://llm.api.cloud.yandex.net/foundationModels/v1/completion';
 
+/** OpenAI-совместимый AI Studio (Alice LLM и др.): Responses API. */
+const DEFAULT_ALICE_RESPONSES_URL = 'https://ai.api.cloud.yandex.net/v1/responses';
+
 const YandexCompletionResponseSchema = z.object({
   result: z
     .object({
@@ -110,8 +113,18 @@ export class YandexGptService {
       return this.getMockStory(childName, childGender, interests);
     }
 
-    const rawText = await this.callYandexCompletion(prompt, apiKey, folderId);
+    const backend = (process.env.YANDEX_STORY_BACKEND || 'completion').trim().toLowerCase();
+    console.log('🤖 Yandex story backend:', backend);
+
+    const rawText =
+      backend === 'alice'
+        ? await this.callAliceResponses(prompt, apiKey, folderId)
+        : await this.callYandexCompletion(prompt, apiKey, folderId);
     return this.parseStoryFromModelText(rawText);
+  }
+
+  private storySystemPrompt(): string {
+    return 'Ты возвращаешь ровно один JSON-объект в UTF-8, без текста до или после него и без Markdown. Внутри каждого поля text — живая детская проза: допускаются диалоги в кавычках «», звукоподражания умеренно, эмоции; не сухой пересказ событий.';
   }
 
   private modelUri(folderId: string): string {
@@ -121,6 +134,134 @@ export class YandexGptService {
     }
     const variant = process.env.YANDEX_GPT_MODEL?.trim() || 'yandexgpt/latest';
     return `gpt://${folderId}/${variant}`;
+  }
+
+  /** model для Alice: gpt://folder/aliceai-llm/latest или полный URI из YANDEX_ALICE_MODEL_URI. */
+  private aliceModelUri(folderId: string): string {
+    const full = process.env.YANDEX_ALICE_MODEL_URI?.trim();
+    if (full) {
+      return full;
+    }
+    const suffix = process.env.YANDEX_ALICE_MODEL?.trim() || 'aliceai-llm/latest';
+    return `gpt://${folderId}/${suffix}`;
+  }
+
+  /**
+   * Alice AI LLM (и др.) через AI Studio Responses API, как в примере с OpenAI SDK.
+   * @see https://ai.api.cloud.yandex.net/v1
+   */
+  private async callAliceResponses(
+    userPrompt: string,
+    apiKey: string,
+    folderId: string,
+  ): Promise<string> {
+    const url =
+      process.env.YANDEX_AI_RESPONSES_URL?.trim() || DEFAULT_ALICE_RESPONSES_URL;
+    const temperature = parseFloat(process.env.YANDEX_ALICE_TEMPERATURE || '0.78');
+    const maxOut = parseInt(process.env.YANDEX_ALICE_MAX_OUTPUT_TOKENS || '8192', 10);
+    const model = this.aliceModelUri(folderId);
+
+    try {
+      const response = await axios.post(
+        url,
+        {
+          model,
+          temperature: Number.isFinite(temperature) ? temperature : 0.78,
+          instructions: this.storySystemPrompt(),
+          input: userPrompt,
+          max_output_tokens: Number.isFinite(maxOut) && maxOut > 0 ? maxOut : 8192,
+        },
+        {
+          headers: {
+            Authorization: `Api-Key ${apiKey}`,
+            'Content-Type': 'application/json',
+            'x-folder-id': folderId,
+            'OpenAI-Project': folderId,
+          },
+          timeout: 180000,
+          validateStatus: () => true,
+        },
+      );
+
+      const { data, status } = response;
+      if (status >= 400) {
+        throw new Error(
+          `Alice Responses HTTP ${status}: ${typeof data === 'object' ? JSON.stringify(data) : String(data)}`,
+        );
+      }
+
+      if (typeof data === 'object' && data !== null && 'error' in data) {
+        throw new Error(`Alice: ${JSON.stringify((data as { error: unknown }).error)}`);
+      }
+
+      const text = this.extractAliceResponseText(data);
+      if (!text.trim()) {
+        throw new Error(
+          `Alice: пустой ответ, сырое тело: ${JSON.stringify(data).slice(0, 800)}`,
+        );
+      }
+      return text;
+    } catch (err) {
+      if (axios.isAxiosError(err)) {
+        const ax = err;
+        const body = ax.response?.data;
+        const detail =
+          body !== undefined
+            ? typeof body === 'object'
+              ? JSON.stringify(body)
+              : String(body)
+            : ax.message;
+        throw new Error(`Alice Responses не удался (${ax.response?.status ?? 'net'}): ${detail}`);
+      }
+      throw err;
+    }
+  }
+
+  /** Разбор тела ответа OpenAI Responses (output_text или output[].content[].text). */
+  private extractAliceResponseText(data: unknown): string {
+    if (typeof data !== 'object' || data === null) {
+      return '';
+    }
+    const o = data as Record<string, unknown>;
+    if (typeof o.output_text === 'string') {
+      return o.output_text;
+    }
+    const output = o.output;
+    if (!Array.isArray(output)) {
+      return '';
+    }
+    const chunks: string[] = [];
+    for (const item of output) {
+      if (typeof item !== 'object' || item === null) {
+        continue;
+      }
+      const rec = item as Record<string, unknown>;
+      if (
+        (rec.type === 'output_text' || rec.type === 'text') &&
+        typeof rec.text === 'string'
+      ) {
+        chunks.push(rec.text);
+        continue;
+      }
+      const content = rec.content;
+      if (!Array.isArray(content)) {
+        continue;
+      }
+      for (const part of content) {
+        if (typeof part !== 'object' || part === null) {
+          continue;
+        }
+        const p = part as Record<string, unknown>;
+        const t = p.type;
+        if (
+          (t === 'output_text' || t === 'text') &&
+          typeof p.text === 'string'
+        ) {
+          chunks.push(p.text);
+        }
+      }
+    }
+    return chunks.join('');
   }
 
   private async callYandexCompletion(
@@ -143,7 +284,7 @@ export class YandexGptService {
           messages: [
             {
               role: 'system',
-              text: 'Ты возвращаешь ровно один JSON-объект в UTF-8, без текста до или после него и без Markdown. Внутри каждого поля text — живая детская проза: допускаются диалоги в кавычках «», звукоподражания умеренно, эмоции; не сухой пересказ событий.',
+              text: this.storySystemPrompt(),
             },
             { role: 'user', text: userPrompt },
           ],
@@ -226,9 +367,15 @@ export class YandexGptService {
       );
     }
 
-    const { title, pages, moral } = storyResult.data;
+    const { title, pages, moral, coverImagePrompt } = storyResult.data;
     const sorted = [...pages].sort((a, b) => a.pageNumber - b.pageNumber);
-    return { title, pages: sorted, moral };
+    const cover = coverImagePrompt?.trim();
+    return {
+      title,
+      pages: sorted,
+      moral,
+      ...(cover ? { coverImagePrompt: cover } : {}),
+    };
   }
 
   /** Запасной сценарий без ключей (локальная разработка). */
